@@ -1,0 +1,38 @@
+<!-- Navigation component -->
+<nav class="bg-black border-b border-gray-800 px-6 py-4">
+    <div class="flex items-center justify-between max-w-6xl mx-auto">
+        <div class="flex items-center space-x-8">
+            <a href="/dashboard" class="text-xl font-bold text-white hover:text-gray-300">
+                AI-Powered Scam Call Identification Tool
+            </a>
+            <div class="hidden md:flex space-x-4">
+                <a href="/dashboard" class="px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors text-white">
+                    Dashboard
+                </a>
+                <a href="/dialer" class="px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors text-white">
+                    Dialer
+                </a>
+                <a href="/contacts" class="px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors text-white">
+                    Contacts
+                </a>
+                <a href="/history" class="px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors text-white">
+                    History
+                </a>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button onclick="logout()" 
+                    class="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-white">
+                Logout
+            </button>
+        </div>
+    </div>
+</nav>
+
+<script>
+async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/auth';
+}
+</script>
+

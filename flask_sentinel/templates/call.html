@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+{% block title %}Call - AI-Powered Scam Call Identification Tool{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-black text-white flex items-center justify-center p-6">
+    <div class="w-full max-w-md space-y-6">
+        <!-- Threat Level Indicator -->
+        <div class="bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-6 text-center shadow-lg transition-all" id="threatCard">
+            <p class="text-2xl font-bold text-white" id="threatText">Call Active</p>
+            <p class="text-sm mt-2 opacity-90" id="callDuration">00:00</p>
+            <div id="recordingIndicator" class="hidden mt-2">
+                <p class="text-xs text-white animate-pulse">🔴 Recording...</p>
+            </div>
+        </div>
+
+        <!-- Phone Number & Contact Info -->
+        <div class="text-center">
+            <p class="text-4xl font-bold mb-2" id="callNumber">Unknown</p>
+            <p id="contactName" class="text-gray-400 text-sm"></p>
+            <p class="text-gray-500 text-xs mt-2">Real-time scam detection active</p>
+        </div>
+
+        <!-- Status Card -->
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4" id="statusCard">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-semibold text-white">Detection Status</p>
+                <span class="px-3 py-1 bg-gray-700 rounded-full text-xs text-white" id="statusBadge">WAITING...</span>
+            </div>
+            <div id="detectedThreats" class="space-y-2">
+                <p class="text-sm text-gray-400">Initializing detection system...</p>
+            </div>
+            <div id="threatScore" class="mt-3">
+                <div class="flex items-center justify-between text-xs mb-1">
+                    <span class="text-gray-400">Threat Level</span>
+                    <span id="scorePercent" class="text-white font-semibold">0%</span>
+                </div>
+                <div class="w-full bg-gray-800 rounded-full h-2">
+                    <div id="scoreBar" class="bg-gray-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call Controls -->
+        <div class="flex justify-center gap-6 items-center">
+            <!-- Mute Button -->
+            <button onclick="toggleMute()" id="muteBtn" class="h-14 w-14 rounded-full bg-gray-800 hover:bg-gray-700 border border-gray-700 flex items-center justify-center transition-colors">
+                <svg id="muteIcon" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                </svg>
+            </button>
+            
+            <!-- End Call Button -->
+            <button onclick="endCall()" class="h-16 w-16 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center shadow-lg transition-all hover:scale-105">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            
+            <!-- Speaker Button -->
+            <button onclick="toggleSpeaker()" id="speakerBtn" class="h-14 w-14 rounded-full bg-gray-800 hover:bg-gray-700 border border-gray-700 flex items-center justify-center transition-colors">
+                <svg id="speakerIcon" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Detector Toggle -->
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-white">Scam Detector</p>
+                    <p class="text-xs text-gray-400" id="detectorStatus">Monitoring...</p>
+                </div>
+                <button onclick="toggleDetector()" id="detectorBtn" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white text-xs font-semibold transition-colors">
+                    ON
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let callDuration = 0;
+let durationInterval;
+let threatLevel = 'safe';
+let isMuted = false;
+let isSpeakerOn = false;
+let detectorOn = true;
+let threatScore = 0;
+let mediaRecorder = null;
+let analysisChunks = [];
+let audioChunks = [];
+let autoEndTimer = null; // Track auto-end timer
+
+function startCallTimer() {
+    durationInterval = setInterval(() => {
+        callDuration++;
+        const mins = Math.floor(callDuration / 60);
+        const secs = callDuration % 60;
+        document.getElementById('callDuration').textContent = 
+            `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
+function updateThreatLevel(level, customScore = null) {
+    threatLevel = level;
+    const threatCard = document.getElementById('threatCard');
+    const threatText = document.getElementById('threatText');
+    const statusBadge = document.getElementById('statusBadge');
+    
+    if (level === 'critical') {
+        threatCard.className = 'bg-gradient-to-r from-red-700 to-red-600 rounded-xl p-6 text-center shadow-lg animate-pulse';
+        threatText.textContent = '🚨 CRITICAL THREAT DETECTED';
+        threatText.className = 'text-2xl font-bold text-white';
+        statusBadge.textContent = 'CRITICAL';
+        statusBadge.className = 'px-3 py-1 bg-red-600 rounded-full text-xs text-white';
+        threatScore = customScore !== null ? customScore : 90;
+    } else if (level === 'warning') {
+        threatCard.className = 'bg-gradient-to-r from-yellow-600 to-yellow-500 rounded-xl p-6 text-center shadow-lg';
+        threatText.textContent = '⚠️ WARNING: Suspicious Activity';
+        threatText.className = 'text-2xl font-bold text-white';
+        statusBadge.textContent = 'WARNING';
+        statusBadge.className = 'px-3 py-1 bg-yellow-600 rounded-full text-xs text-white';
+        threatScore = customScore !== null ? customScore : 60;
+    } else if (level === 'safe') {
+        threatCard.className = 'bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-6 text-center shadow-lg';
+        threatText.textContent = 'Call Active';
+        threatText.className = 'text-2xl font-bold text-white';
+        statusBadge.textContent = 'SAFE';
+        statusBadge.className = 'px-3 py-1 bg-green-600 rounded-full text-xs text-white';
+        threatScore = customScore !== null ? customScore : 0;
+    } else {
+        // Waiting/initializing state
+        threatCard.className = 'bg-gradient-to-r from-gray-600 to-gray-500 rounded-xl p-6 text-center shadow-lg';
+        threatText.textContent = 'Initializing...';
+        threatText.className = 'text-2xl font-bold text-white';
+        statusBadge.textContent = 'WAITING...';
+        statusBadge.className = 'px-3 py-1 bg-gray-700 rounded-full text-xs text-white';
+        threatScore = customScore !== null ? customScore : 0;
+    }
+    
+    // Update score bar
+    const scoreBar = document.getElementById('scoreBar');
+    const scorePercent = document.getElementById('scorePercent');
+    scoreBar.style.width = `${threatScore}%`;
+    scorePercent.textContent = `${threatScore}%`;
+    
+    if (threatScore > 70) {
+        scoreBar.className = 'bg-red-600 h-2 rounded-full transition-all';
+    } else if (threatScore > 40) {
+        scoreBar.className = 'bg-yellow-600 h-2 rounded-full transition-all';
+    } else if (threatScore > 0) {
+        scoreBar.className = 'bg-green-600 h-2 rounded-full transition-all';
+    } else {
+        scoreBar.className = 'bg-gray-600 h-2 rounded-full transition-all';
+    }
+}
+
+function toggleMute() {
+    isMuted = !isMuted;
+    const muteIcon = document.getElementById('muteIcon');
+    const muteBtn = document.getElementById('muteBtn');
+    if (isMuted) {
+        muteIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M15 6h6a2 2 0 012 2v8a2 2 0 01-2 2h-6"></path>';
+        muteBtn.classList.remove('bg-gray-800');
+        muteBtn.classList.add('bg-red-900', 'border-red-700');
+    } else {
+        muteIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>';
+        muteBtn.classList.remove('bg-red-900', 'border-red-700');
+        muteBtn.classList.add('bg-gray-800');
+    }
+}
+
+function toggleSpeaker() {
+    isSpeakerOn = !isSpeakerOn;
+    const speakerIcon = document.getElementById('speakerIcon');
+    const speakerBtn = document.getElementById('speakerBtn');
+    if (isSpeakerOn) {
+        speakerBtn.classList.remove('bg-gray-800');
+        speakerBtn.classList.add('bg-blue-600', 'border-blue-500');
+    } else {
+        speakerBtn.classList.remove('bg-blue-600', 'border-blue-500');
+        speakerBtn.classList.add('bg-gray-800');
+    }
+}
+
+function toggleDetector() {
+    detectorOn = !detectorOn;
+    const detectorBtn = document.getElementById('detectorBtn');
+    const detectorStatus = document.getElementById('detectorStatus');
+    if (detectorOn) {
+        detectorBtn.textContent = 'ON';
+        detectorBtn.className = 'px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white text-xs font-semibold transition-colors';
+        detectorStatus.textContent = 'Monitoring...';
+    } else {
+        detectorBtn.textContent = 'OFF';
+        detectorBtn.className = 'px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-xs font-semibold transition-colors';
+        detectorStatus.textContent = 'Paused';
+    }
+}
+
+async function endCall() {
+    if (durationInterval) clearInterval(durationInterval);
+    
+    // Stop recording
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+    }
+    
+    // Save call record
+    const phoneNumber = new URLSearchParams(window.location.search).get('number') || 'Unknown';
+    
+    try {
+        await fetch('/api/calls', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone_number: phoneNumber,
+                duration: callDuration,
+                scam_risk_level: threatLevel,
+                detected_reasons: threatLevel !== 'safe' ? 'Real-time analysis detected suspicious patterns' : ''
+            })
+        });
+    } catch (error) {
+        console.error('Error saving call:', error);
+    }
+    
+    window.location.href = '/dashboard';
+}
+
+// Start call timer on load
+startCallTimer();
+
+// Get phone number from URL
+const phoneNumber = new URLSearchParams(window.location.search).get('number') || 'Unknown';
+document.getElementById('callNumber').textContent = phoneNumber;
+
+// Show recording indicator
+document.getElementById('recordingIndicator').classList.remove('hidden');
+
+// Initialize status to 'waiting'
+updateThreatLevel('waiting');
+
+// Start real-time audio recording and analysis
+async function startRecording() {
+    try {
+        console.log('Requesting microphone access...');
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        // Analyze audio every 20 seconds (collect 10 chunks of 2 seconds each)
+        mediaRecorder.start(2000); // Collect chunks every 2 seconds
+        
+        console.log('✓ Microphone access granted');
+        document.getElementById('detectedThreats').innerHTML = 
+            '<p class="text-sm text-blue-400">🎤 Microphone active - analyzing every 20 seconds...</p>';
+        
+        setInterval(() => {
+            if (detectorOn && audioChunks.length > 0) {
+                analyzeAudioChunk();
+            }
+        }, 20000); // Analyze every 20 seconds
+        
+        console.log('Recording started for real-time analysis');
+    } catch (error) {
+        console.error('Error starting recording:', error);
+        updateThreatLevel('safe'); // Default to safe if mic not available
+        document.getElementById('detectedThreats').innerHTML = 
+            '<p class="text-sm text-yellow-400">⚠️ Microphone not available - using contact-based detection only</p>';
+    }
+}
+
+async function analyzeAudioChunk() {
+    if (!detectorOn || audioChunks.length === 0) return;
+    
+    try {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        
+        // Only analyze if audio is substantial (at least 1KB)
+        if (audioBlob.size < 1024) {
+            audioChunks = [];
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'call_audio.webm');
+        
+        console.log('Analyzing audio chunk, size:', audioBlob.size, 'bytes');
+        
+        // Show analyzing status
+        document.getElementById('detectedThreats').innerHTML = 
+            '<p class="text-sm text-blue-400 animate-pulse">🔍 Analyzing audio...</p>';
+        
+        const response = await fetch('/api/analyze-audio', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        console.log('Real-time analysis result:', result);
+        
+        // Only show results if we got actual transcription (not silent/empty)
+        if (!result.transcription || result.transcription.includes('Unable to transcribe')) {
+            console.log('No transcription - skipping analysis');
+            // Don't clear chunks here - keep recording while analysis happens
+            return;
+        }
+        
+        // Use the actual scam_score from the backend (multiply by 100 for percentage)
+        const score = Math.round(result.scam_score * 100);
+        
+        console.log('Dynamic score calculated:', score);
+        
+        // Update threat based on actual dynamic score
+        // Thresholds: Safe < 30%, Fraud >= 30%
+        if (score >= 30) {
+            // Fraud detected - auto-end call
+            updateThreatLevel('critical', score);
+            document.getElementById('detectedThreats').innerHTML = 
+                result.reasons.slice(0, 3).map(r => `<p class="text-sm text-red-400">${r}</p>`).join('') +
+                '<p class="text-sm text-red-400 animate-pulse mt-2">⚠️ Call will end automatically in 3 seconds...</p>';
+            
+            // Auto-end call after 3 seconds for fraud detection (only if not already scheduled)
+            if (!autoEndTimer) {
+                console.log('🚨 FRAUD detected! Auto-ending call in 3 seconds...');
+                autoEndTimer = setTimeout(() => {
+                    console.log('Auto-ending call due to FRAUD detection');
+                    endCall();
+                }, 3000);
+            }
+            
+        } else {
+            // Safe - continue call
+            updateThreatLevel('safe', score);
+            document.getElementById('detectedThreats').innerHTML = 
+                '<p class="text-sm text-green-400">✅ No threats detected - call safe to continue</p>';
+        }
+        
+        // Clear chunks for next analysis (this is OK - analysis takes a second, and recording continues)
+        audioChunks = [];
+        
+    } catch (error) {
+        console.error('Error analyzing audio chunk:', error);
+        audioChunks = [];
+    }
+}
+
+// Start recording when page loads
+startRecording();
+
+// Analyze call using the number
+async function analyzeCall() {
+    try {
+        console.log('Analyzing call for number:', phoneNumber);
+        
+        // Check if number is in contacts
+        const contactsResponse = await fetch('/api/contacts');
+        const contactsData = await contactsResponse.json();
+        const contacts = contactsData.data || [];
+        
+        const contact = contacts.find(c => c.phone_number === phoneNumber);
+        
+        if (contact) {
+            console.log('Contact found:', contact);
+            document.getElementById('contactName').textContent = contact.name;
+            
+            // Calculate dynamic score from contact
+            const contactScore = contact.scam_score ? Math.round(contact.scam_score * 100) : 0;
+            
+            // Show contact info immediately with dynamic score
+            // Thresholds: Safe < 30%, Fraud >= 30%
+            if (contact.scam_risk_level === 'critical' || contact.scam_risk_level === 'warning' || contactScore >= 30) {
+                // Fraud detected - auto-end call
+                updateThreatLevel('critical', contactScore);
+                document.getElementById('detectedThreats').innerHTML = `
+                    <p class="text-sm text-red-400">🚨 ${contact.name}: Fraud detected</p>
+                    <p class="text-sm text-red-400">💰 Scam Score: ${contactScore}%</p>
+                    <p class="text-sm text-red-400 animate-pulse">⚠️ Call will end automatically in 3 seconds...</p>
+                `;
+                
+                // Auto-end call after 3 seconds for fraud detection
+                if (!autoEndTimer) {
+                    console.log('🚨 Fraud contact detected! Auto-ending call in 3 seconds...');
+                    autoEndTimer = setTimeout(() => {
+                        console.log('Auto-ending call due to fraud contact');
+                        endCall();
+                    }, 3000);
+                }
+                return; // Don't continue with simulation
+            } else if (contact.scam_risk_level === 'safe' || contactScore < 30) {
+                // Safe contact - continue call
+                updateThreatLevel('safe', contactScore);
+                document.getElementById('detectedThreats').innerHTML = `
+                    <p class="text-sm text-green-400">✅ ${contact.name}: Known safe contact</p>
+                `;
+                return;
+            }
+        }
+        
+        // If not in contacts, wait for real-time analysis (no random simulation)
+        console.log('Number not in contacts, waiting for real-time analysis...');
+        
+    } catch (error) {
+        console.error('Error analyzing call:', error);
+    }
+}
+
+// Start analysis
+analyzeCall();
+</script>
+
+{% endblock %}

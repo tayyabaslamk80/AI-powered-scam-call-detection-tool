@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --version:*)",
+      "Bash(npm:*)",
+      "Bash(py:*)",
+      "Bash(if not exist venv py -m venv venv)",
+      "Bash(dir:*)",
+      "Bash(if exist sentinel.db del sentinel.db)",
+      "Bash(del /f sentinel.db)",
+      "Bash(curl:*)",
+      "Bash(sqlite3:*)",
+      "Bash(pip install:*)",
+      "Bash(if [ -f venv/Scripts/activate ])",
+      "Bash(then echo \"venv exists\")",
+      "Bash(else echo \"venv missing\")",
+      "Bash(fi)",
+      "Bash(python server.py:*)",
+      "Bash(cat requirements.txt)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

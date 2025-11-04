@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI-Powered Scam Call Identification Tool{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0a0a0a',
+                        foreground: '#fafafa',
+                        primary: { DEFAULT: '#ef4444', foreground: '#ffffff' },
+                        secondary: { DEFAULT: '#1f1f1f', foreground: '#fafafa' },
+                        muted: { DEFAULT: '#262626', foreground: '#9ca3af' },
+                        accent: { DEFAULT: '#ef4444', foreground: '#ffffff' },
+                        destructive: { DEFAULT: '#ef4444' },
+                        border: '#2d2d2d',
+                        card: '#141414',
+                        'alert-critical': '#ef4444',
+                        'alert-warning': '#f59e0b',
+                        'alert-safe': '#22c55e',
+                    },
+                    backgroundImage: {
+                        'gradient-dark': 'linear-gradient(180deg, hsl(0 0% 5%), hsl(0 0% 8%))',
+                        'gradient-card': 'linear-gradient(135deg, hsl(0 0% 8%), hsl(0 0% 12%))',
+                    },
+                    boxShadow: {
+                        'glow-red': '0 0 20px rgba(239, 68, 68, 0.5)',
+                        'elevated': '0 10px 40px rgba(0, 0, 0, 0.8)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background: linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 100%); }
+        .bg-gradient-dark { background: linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 100%); }
+        .bg-gradient-card { background: linear-gradient(135deg, #141414 0%, #1a1a1a 100%); }
+    </style>
+</head>
+<body class="bg-gradient-dark text-white">
+    {% block content %}{% endblock %}
+    
+    <script>
+        // API utility functions
+        window.api = {
+            get: async (endpoint) => {
+                const res = await fetch(`/api/${endpoint}`);
+                return res.json();
+            },
+            post: async (endpoint, data) => {
+                const res = await fetch(`/api/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return res.json();
+            }
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+
