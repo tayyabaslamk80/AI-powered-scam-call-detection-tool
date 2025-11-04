@@ -82,3 +82,45 @@ pip install -r requirements.txt
 
 # Run the Flask application
 python app.py
+```
+## 🧪 Testing
+
+You can test the system using:
+
+- 🎧 **Live microphone input**
+- 📂 **Uploaded audio files**
+- 📄 **Text-based transcripts**
+
+Each test will output whether the conversation is **safe** or **fraudulent**, along with model confidence scores.
+
+---
+
+## 📈 Results
+
+The AI model demonstrates strong performance in detecting fraudulent conversations, maintaining **high accuracy and recall** during evaluation.  
+All prediction results are clearly displayed in the **user-friendly web interface**.
+
+---
+
+## 🔮 Future Enhancements
+
+- 📞 Integration with **VoIP APIs** for live phone call interception  
+- 🌍 **Multi-language detection** support  
+- 🎭 **Emotion and tone-based detection** for enhanced accuracy  
+- ☁️ **Cloud-based deployment** for real-time scalability  
+
+---
+
+## 💡 Conclusion
+
+The **AI-Powered Scam Call Detection Tool** is a step toward a safer communication environment.  
+By leveraging **AI, NLP, and speech analysis**, it can efficiently identify and prevent scam activities before any damage occurs.
+
+---
+
+## 👨‍💻 Developer
+
+**Tayyab Aslam**  
+📍 *Muzaffarabad, Azad Kashmir*  
+🎓 *BS Artificial Intelligence (Final Year Project)*  
+📧 *tayyab.aslam@example.com*
